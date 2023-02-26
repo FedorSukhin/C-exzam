@@ -1,0 +1,870 @@
+#include <iostream>
+#include <stdlib.h>
+#include <conio.h>
+#include <time.h>
+#include <windows.h>
+#include <string.h>//!!
+using namespace std;
+enum Color {
+	Black, Blue, Green, Cyan, Red,
+	Magenta, Brown, LightGray, DarkGray, LightBlue, LightGreen, LightCyan,
+	LightRed, LightMagenta, Yellow, White
+};
+
+enum Direction { Up = 72, Left = 75, Right = 77, Down = 80, Enter = 13, esc = 27, Space = 32 };
+HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);//получаем дискриптор активного окна
+void SetCursor(int x, int y)
+{
+	COORD myCoords = { x,y };
+	SetConsoleCursorPosition(hStdOut, myCoords);
+}
+void SetColor(Color text, Color background)
+{
+	SetConsoleTextAttribute(hStdOut, (WORD)((background << 4) | text));
+}
+int const SizeAria = 10;//размер игрового поля
+int const MaxSizeShip = 4;
+double CountOfShip = ((1 + MaxSizeShip) / 2.0) * MaxSizeShip; //количество кораблей
+
+
+//создание типа структуры кораблей
+struct Ship
+{
+	int Size = MaxSizeShip;//размер
+	int Direct;//направление 0 - горизонтально, 1 -вертикально
+	int PointX;//коордитата Х начальной точки 
+	int PointY;//координата У начальной точки
+	int Namber;//номер корабля одного размера
+	int Live;//1- живой, 0 - убит
+	int CountLive;
+};
+// создание структуры короблей
+void setShip(Ship& boat)
+{
+	boat.Size = MaxSizeShip;
+	boat.Direct = 0;
+	boat.PointX = 0;
+	boat.PointY = 0;
+	boat.Namber = 1;
+	boat.Live = 2;
+	boat.CountLive = 1;
+}
+//создание массива кораблей
+void setShip(Ship* boat, int length)
+{
+	int CountMax = MaxSizeShip,
+		CountBoat = 1,
+		n = 0;
+	for (size_t i = 0; i < length; i++)
+	{
+		setShip(boat[i]);
+		boat[i].Size = CountMax;
+		boat[i].Namber = CountBoat;
+		boat[i].CountLive = CountMax;
+		CountBoat--;
+		if (CountBoat == 0)
+		{
+			n++;
+			CountMax = MaxSizeShip - n;
+			CountBoat = n + 1;
+		}
+	}
+
+}
+//Вывод массива кораблей
+void ShowMasShip(Ship* mas)
+{
+	cout << "Size\tNam\tDir\tPointX\tPointY\t\Live\tCountLive\n";
+	for (size_t i = 0; i < CountOfShip; i++)
+	{
+		cout << mas[i].Size << "\t" << mas[i].Namber << "\t" << mas[i].Direct <<
+			"\t" << mas[i].PointX << "\t" << mas[i].PointY << "\t"
+			<< mas[i].Live << "\t" << mas[i].CountLive << "\n";
+	}
+}
+//копирование массива
+void CopyMas(int** MasSource, int** MasCopy, int row, int col)
+{
+	for (size_t i = 0; i < row; i++)
+	{
+		for (size_t j = 0; j < col; j++)
+		{
+
+			MasCopy[i][j] = MasSource[i][j];
+		}
+	}
+}
+
+//Сумма кораблей
+int SumShip(Ship* mas)
+{
+	int sum = 0;
+	for (size_t i = 0; i < CountOfShip; i++)
+	{
+		sum += mas[i].Live;
+	}
+	return sum;
+}
+//массив заполненый 0
+void setMas0(int** mas, int row, int col)
+{
+	for (size_t i = 0; i < row; i++)
+	{
+		for (size_t j = 0; j < col; j++)
+		{
+			mas[i][j] = 0;
+		}
+	}
+}
+
+//Расстановка корабля в случайном порядке с учетом уже стоящих
+void setRandomMasShip(Ship& boat, int** masAria, int CountShip, int lenghtAria)
+{
+	int key = 0, key1 = 0;
+	int X, Y, EndX, EndY;//переменные для простоты записи
+	do
+	{
+		boat.Direct = rand() % 2;
+		key = 0;
+		if (boat.Direct == 0) {
+			boat.PointX = rand() % (lenghtAria - boat.Size);
+			boat.PointY = rand() % lenghtAria;
+			X = boat.PointX;
+			Y = boat.PointY;
+			EndX = lenghtAria - boat.Size - 1;
+			EndY = lenghtAria - 1;
+		}
+		else
+		{
+			boat.PointX = rand() % lenghtAria;
+			boat.PointY = rand() % (lenghtAria - boat.Size);
+			X = boat.PointX;
+			Y = boat.PointY;
+			EndX = lenghtAria - 1;
+			EndY = lenghtAria - boat.Size - 1;
+		}
+		if (boat.Direct == 0) //проверка если корабль горизонтально
+		{
+			if (X > 0 && X < EndX && Y>0 && Y < EndY) //проверка если по центру
+			{
+				for (size_t t = Y - 1; t < Y + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			//	for (size_t t = Y - 1; t < Y + 2; t++)
+			//	{
+			//		for (size_t j = X - 1; j < X + boat.Size + 2; j++)
+			//		{
+			//			/*if (t > -1 && t<EndX && j>-1 && j < EndY)
+			//			{
+			//				if (masAria[t][j] > 0)
+			//				{
+			//					key++;
+			//				}
+			//			*/
+			//		}
+			//	}
+			//}
+
+
+			else if (X == 0 && Y == 0)// проверка угла левый верх
+			{
+				for (size_t t = Y; t < Y + 2; t++)
+				{
+					for (size_t j = X; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == 0 && Y == EndY)// проверка угла левый низ
+			{
+				for (size_t t = Y - 1; t < Y + 1; t++)
+				{
+					for (size_t j = X; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == EndX && Y == 0)// проверка угла правый верх
+			{
+				for (size_t t = Y; t < Y + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 1; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == EndX && Y == EndY)// проверка угла правый низ
+			{
+				for (size_t t = Y - 1; t < Y + 1; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 1; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == 0 && X < EndX && Y>0 && Y < EndY)// проверка если слева
+			{
+				for (size_t t = Y - 1; t < Y + 2; t++)
+				{
+					for (size_t j = X; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X > 0 && X == EndX && Y > 0 && Y < EndY)// проверка если справа
+			{
+				for (size_t t = Y - 1; t < Y + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 1; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X > 0 && X < EndX && Y == 0 && Y < EndY) //проверка если сверху
+			{
+				for (size_t t = Y; t < Y + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else //проверка если снизу
+			{
+				for (size_t t = Y - 1; t < Y + 1; t++)
+				{
+					for (size_t j = X - 1; j < X + boat.Size + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+		}
+		if (boat.Direct == 1) //проверка если корабль вертикально
+		{
+			if (X > 0 && X < EndX && Y>0 && Y < EndY) //проверка если по центру
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == 0 && Y == 0)// проверка угла левый верх
+			{
+				for (size_t t = Y; t < Y + boat.Size + 2; t++)
+				{
+					for (size_t j = X; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == 0 && Y == EndY)// проверка угла левый низ
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 1; t++)
+				{
+					for (size_t j = X; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == EndX && Y == 0)// проверка угла правый верх
+			{
+				for (size_t t = Y; t < Y + boat.Size + 1; t++)
+				{
+					for (size_t j = X - 1; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == EndX && Y == EndY)// проверка угла правый низ
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 1; t++)
+				{
+					for (size_t j = X - 1; j < X + 1; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X == 0 && X < EndX && Y>0 && Y < EndY)// проверка если слева
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 2; t++)
+				{
+					for (size_t j = X; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X > 0 && X == EndX && Y > 0 && Y < EndY)// проверка если справа
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + 1; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+			else if (X > 0 && X < EndX && Y == 0 && Y < EndY) //проверка если сверху
+			{
+				for (size_t t = Y; t < Y + boat.Size + 2; t++)
+				{
+					for (size_t j = X - 1; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					};
+				}
+			}
+			else //проверка если снизу
+			{
+				for (size_t t = Y - 1; t < Y + boat.Size + 1; t++)
+				{
+					for (size_t j = X - 1; j < X + 2; j++)
+					{
+						if (masAria[t][j] > 0)
+						{
+							key++;
+						}
+					}
+				}
+			}
+		}
+		if (key == 0)
+		{
+			boat.PointX = X;
+			boat.PointY = Y;
+			if (boat.Direct == 0)
+			{
+				for (size_t h = 0; h < (boat.Size); h++)
+				{
+					masAria[Y][(X + h)] = boat.Size * 1000 + boat.Namber * 100 + boat.Live * 10 + boat.CountLive;
+				}
+			}
+			else
+			{
+				for (size_t h = 0; h < (boat.Size); h++)
+				{
+					masAria[(Y + h)][X] = boat.Size * 1000 + boat.Namber * 100 + boat.Live * 10 + boat.CountLive;
+				}
+			}
+		}key1++;
+	} while (key > 0);
+}
+//расстановка последовательно кораблей на поле в случайном порядке
+void setRandomMasShip(Ship* boat, int** masAria, int CountShip, int lenghtAria)
+{
+	for (size_t i = 0; i < CountShip; i++)
+	{
+		setRandomMasShip(boat[i], masAria, CountShip, lenghtAria);
+	}
+}
+
+void ShowMas(int** mas, int row, int col)
+{
+	for (size_t i = 0; i < row; i++)
+	{
+		for (size_t j = 0; j < col; j++)
+		{
+			/*if ((j % 6) == 0 || (i % 3) == 0 || (j + 1) % 6 == 0)
+				SetColor(Black, Black);
+			else
+				SetColor(Black, LightGray);*/
+			cout << mas[i][j] /*<<"\t"*/;
+		}
+		//SetColor(White, Black);
+		cout << "\n";
+	}
+}
+//функция отрисовки поля игры
+//функция отрисовки квадрата курсора
+int SquareH = 2, SquareW = 4;//задаем размеры квадрата поля
+void SquareCursor(int x, int y, Color color)
+{
+	SetCursor(x, y);
+	SetColor(color, color);
+	for (size_t i = 0; i < SquareH; i++)
+	{
+		SetCursor(x, y + i);
+		for (size_t i = 0; i < SquareW; i++)
+		{
+			cout << "*";
+		}
+	}
+	SetColor(White, Black);
+}
+
+//Функция создания матрицы поля боя
+void SetMasBattle(int** masBattle)
+{
+	setMas0(masBattle, SizeAria * 3 + 1, SizeAria * 6 + 2);
+	for (size_t i = 0; i < SizeAria * 3 + 1; i++)
+	{
+		for (size_t j = 0; j < SizeAria * 6 + 2; j++)
+		{
+			if (i % 3 == 0 || j % 6 == 0 || j % 6 == 1)
+				masBattle[i][j] = -1;
+		}
+	}
+
+}
+//Функция преноса значения из матрицы
+void CopyAriaBattle(int i, int j, int** masBattle, int num)
+{
+	for (size_t k = 0; k < 2; k++)
+	{
+		for (size_t n = 0; n < 4; n++)
+		{
+			masBattle[i * 3 + 1 + k][j * 6 + 2 + n] = num;
+		}
+	}
+}
+//Функция заполнения матрицы поля боя состояниями кораблей
+void SetMasBattle(int** masAria, int** masBattle)
+{
+	for (size_t i = 0; i < SizeAria; i++)
+	{
+		for (size_t j = 0; j < SizeAria; j++)
+		{
+			if (masAria[i][j] == 0)
+			{
+				CopyAriaBattle(i, j, masBattle, 0);
+			}
+			else if (masAria[i][j] > 0)
+			{
+				CopyAriaBattle(i, j, masBattle, masAria[i][j]);
+			}
+		}
+	}
+}
+
+//Функция отрисовки поля игры
+void BattleField(int StartPointX, int StartPointY, Color fild, Color Square, int** masBattle)
+{
+	for (size_t i = 0; i < SizeAria * 3 + 1; i++)
+	{
+		SetCursor(StartPointX, StartPointY + i);
+		for (size_t j = 0; j < SizeAria * 6 + 2; j++)
+		{
+			if (masBattle[i][j] == -1)//границы
+			{
+				SetColor(fild, fild);
+			}
+			else if (masBattle[i][j] == 0)//не открытые квадраты
+			{
+				SetColor(Square, Square);
+			}
+			else if (masBattle[i][j] == 1)//промах
+			{
+				SetColor(LightGray, LightGray);
+			}
+			else if (masBattle[i][j] == 3)// убит
+			{
+				SetColor(Red, Red);
+			}
+			else if (masBattle[i][j] == 2)// ранен
+			{
+				SetColor(Yellow, Yellow);
+			}
+			else if (masBattle[i][j] > 10)//расставленные корабли
+			{
+				SetColor(DarkGray, DarkGray);
+			}
+			cout << "*";
+			SetColor(White, Black);
+		}
+	}SetColor(White, Black);
+}
+//функция движения курсора по полю
+int MoveCursor(int X, int Y, Color color, int** masBattle, int** masCopy,Ship* boat, int SizeArea)
+{
+	int key, x = 0, y = 0;
+
+	do
+	{
+		BattleField(X, Y, Blue, Cyan, masBattle);
+		SquareCursor(X + 2 + x, Y + 1 + y, color);
+		key = _getch();
+		switch (key)
+		{
+		case Up:
+			if (y > 2) y -= 3;
+			break;
+		case Left:
+			if (x > 5)x -= 6;
+			break;
+		case Right:
+			if (x < SizeAria * 6 - 9)x += 6;
+			break;
+		case Down:
+			if (y < SizeAria * 3 - 4)y += 3;
+			break;
+		case Enter:
+		//	CheckFire(x,y,);
+			break;
+		}
+	} while (key != esc);
+	return 1;
+}
+void CheckFire(int X, int Y, int** masCopy, int** masAria, Ship* boat, int SizeArea)
+{
+	int key = 0, num = 0;
+	int EndX, EndY;
+	if (masAria[Y][X] == 0)
+	{
+		masCopy[Y][X] = 1;
+		key = 0;
+	}
+	else if (masAria[Y][X] > 0 && masAria[Y][X] < 10)
+	{
+		key = 1;
+	}
+	else if (masAria[Y][X] > 999)
+	{
+		for (size_t i = 0; i < CountOfShip; i++)
+		{
+			if (boat[i].Size == masAria[Y][X] / 1000 && boat[i].Namber == masAria[Y][X] / 100)//определяем конкретный корабль
+			{
+				num = i;
+			}
+		}
+		boat[num].CountLive--;
+		if (boat[num].CountLive > 0)
+		{
+			boat[num].Live = 1;
+			masCopy[Y][X] = 2;
+		}
+		else {
+			boat[num].Live = 0;
+			X = boat[num].PointX;
+			Y = boat[num].PointY;
+			if (boat[num].Direct == 0)
+			{
+				EndX = SizeArea - boat[num].Size - 1;
+				EndY = SizeArea - 1;
+				if (X > 0 && X < EndX && Y>0 && Y < EndY) //проверка если по центру
+				{
+					for (size_t t = Y - 1; t < Y + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && Y == 0)// проверка угла левый верх
+				{
+					for (size_t t = Y; t < Y + 2; t++)
+					{
+						for (size_t j = X; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && Y == EndY)// проверка угла левый низ
+				{
+					for (size_t t = Y - 1; t < Y + 1; t++)
+					{
+						for (size_t j = X; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == EndX && Y == 0)// проверка угла правый верх
+				{
+					for (size_t t = Y; t < Y + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 1; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == EndX && Y == EndY)// проверка угла правый низ
+				{
+					for (size_t t = Y - 1; t < Y + 1; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 1; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && X < EndX && Y>0 && Y < EndY)// проверка если слева
+				{
+					for (size_t t = Y - 1; t < Y + 2; t++)
+					{
+						for (size_t j = X; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X > 0 && X == EndX && Y > 0 && Y < EndY)// проверка если справа
+				{
+					for (size_t t = Y - 1; t < Y + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 1; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X > 0 && X < EndX && Y == 0 && Y < EndY) //проверка если сверху
+				{
+					for (size_t t = Y; t < Y + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else //проверка если снизу
+				{
+					for (size_t t = Y - 1; t < Y + 1; t++)
+					{
+						for (size_t j = X - 1; j < X + boat[num].Size + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				for (size_t i = 0; i < boat[num].Size; i++)
+				{
+					masCopy[Y][X+i] = 3;
+				}
+			}
+
+			if (boat[num].Direct == 1) {
+
+				EndX = SizeArea - 1;
+				EndY = SizeArea - boat[num].Size - 1;
+
+
+				if (X > 0 && X < EndX && Y>0 && Y < EndY) //проверка если по центру
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && Y == 0)// проверка угла левый верх
+				{
+					for (size_t t = Y; t < Y + boat[num].Size + 2; t++)
+					{
+						for (size_t j = X; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && Y == EndY)// проверка угла левый низ
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 1; t++)
+					{
+						for (size_t j = X; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == EndX && Y == 0)// проверка угла правый верх
+				{
+					for (size_t t = Y; t < Y + boat[num].Size + 1; t++)
+					{
+						for (size_t j = X - 1; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == EndX && Y == EndY)// проверка угла правый низ
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 1; t++)
+					{
+						for (size_t j = X - 1; j < X + 1; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X == 0 && X < EndX && Y>0 && Y < EndY)// проверка если слева
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 2; t++)
+					{
+						for (size_t j = X; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X > 0 && X == EndX && Y > 0 && Y < EndY)// проверка если справа
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + 1; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else if (X > 0 && X < EndX && Y == 0 && Y < EndY) //проверка если сверху
+				{
+					for (size_t t = Y; t < Y + boat[num].Size + 2; t++)
+					{
+						for (size_t j = X - 1; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				else //проверка если снизу
+				{
+					for (size_t t = Y - 1; t < Y + boat[num].Size + 1; t++)
+					{
+						for (size_t j = X - 1; j < X + 2; j++)
+						{
+							masCopy[t][j] = 1;
+						}
+					}
+				}
+				for (size_t i = 0; i < boat[num].Size; i++)
+				{
+					masCopy[Y+i][X] = 3;
+				}
+			}
+		}
+	}
+}
+
+int main()
+{
+	setlocale(LC_ALL, "rus");
+	srand(time(NULL));
+	Ship* boat = new Ship[CountOfShip];//выделяем память под массив кораблей
+	setShip(boat, CountOfShip);//предворительно заполняем массив кораблей
+	//выделяем память под массив расстановки своих кораблей
+	int** masAriaSelf = new int* [SizeAria];
+	for (size_t i = 0; i < SizeAria; i++)
+	{
+		masAriaSelf[i] = new int[SizeAria];
+	}
+	setMas0(masAriaSelf, SizeAria, SizeAria);
+	//выделяем память для массива работы со своим полем
+	int** masAriaSelfCopy = new int* [SizeAria];
+	for (size_t i = 0; i < SizeAria; i++)
+	{
+		masAriaSelfCopy[i] = new int[SizeAria];
+	}
+
+	setMas0(masAriaSelfCopy, SizeAria, SizeAria);
+	//выделяем память под массив расстановки короблей противника
+	int** masAriaEnemy = new int* [SizeAria];//выдяляем память 
+	for (size_t i = 0; i < SizeAria; i++)
+	{
+		masAriaEnemy[i] = new int[SizeAria];
+	}
+	setMas0(masAriaEnemy, SizeAria, SizeAria);
+	//выделяем память для массива работы со полем противника
+	int** masAriaEnemyCopy = new int* [SizeAria];
+	for (size_t i = 0; i < SizeAria; i++)
+	{
+		masAriaEnemyCopy[i] = new int[SizeAria];
+	}
+	setMas0(masAriaEnemyCopy, SizeAria, SizeAria);
+	//расставляем свои корабли в случайном порядке
+	setRandomMasShip(boat, masAriaSelf, CountOfShip, SizeAria);
+	//выделяем память под отображение своих кораблей
+	int** masBattleFildSelf = new int* [SizeAria * 3 + 1];
+	for (size_t i = 0; i < SizeAria * 3 + 1; i++)
+	{
+		masBattleFildSelf[i] = new int[SizeAria * 6 + 2];
+	}
+	//выделяем память под рабочую область игры
+	int** masBattleFildEnemy = new int* [SizeAria * 3 + 1];
+	for (size_t i = 0; i < SizeAria * 3 + 1; i++)
+	{
+		masBattleFildEnemy[i] = new int[SizeAria * 6 + 2];
+	}
+
+	SetMasBattle(masBattleFildSelf);
+	SetMasBattle(masAriaSelf, masBattleFildSelf);
+
+	MoveCursor(1, 5, LightMagenta, masBattleFildSelf, masAriaEnemyCopy,boat, SizeAria);
+
+}

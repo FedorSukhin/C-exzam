@@ -1,0 +1,291 @@
+#include<iostream>
+#include<conio.h>
+#include<Windows.h>
+#include<time.h>
+#include<algorithm>
+#include<vector>
+using namespace std;
+
+enum Color {
+	Black = 0, Blue, Green, Cyan, Red,
+	Magenta, Brown, LightGray, DarkGray, LightBlue = 9, LightGreen, LightCyan,
+	LightRed, LightMagenta, Yellow, White
+};
+HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+enum Direction { Up = 72, Left = 75, Right = 77, Down = 80, Enter = 13, esc = 27 };
+
+void SetColor(Color text, Color background)
+{
+	SetConsoleTextAttribute(hStdOut, (WORD)((background << 4) | text));
+}
+void SetCursor(int x, int y)
+{
+	COORD myCoords = { x,y };//инициализируем передаваемыми значениями объект координат   
+	SetConsoleCursorPosition(hStdOut, myCoords);
+}
+
+
+//функция для заполнения массива (можно передавать позиции) 
+template<typename Sample>
+Sample setarray(Sample mas[], int length)
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		mas[i] = -10 + rand() % 35;
+	}
+
+}
+//функция для вывода на экран
+template<typename Sample>
+void showarray(Sample* mas, int length)
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		cout << mas[i] << "\n";
+	}
+
+}
+//функция для копирования массива в массив
+template<typename Sample>
+Sample copyarray(Sample* destination/*куда*/, Sample* sourse/*что*/, int length)
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		destination[i] = sourse[i];
+	}
+
+}
+int squareW = 5, squareH = 5;
+//функция отрисовывает прямоугольник на указанных координатах передаваемым цветом
+void square(int x, int y, Color color)
+{
+	SetCursor(x, y);
+	SetColor(color, Black);
+	for (size_t i = 0; i < squareH; i++)
+	{
+		SetCursor(x, y + i);
+		for (size_t j = 0; j < squareW; j++)
+		{
+			cout << "*";
+		}
+	}
+	SetColor(White, Black);
+}
+//функция перемещает прямоугольник
+Color leftF, rightF, upF, downF;
+int width = 20, heigth = 20;
+void frame()
+{
+	for (size_t i = 0; i < 20; i++)
+	{
+		SetCursor(0, 0 + i);
+		for (size_t j = 0; j < 20; j++)
+		{
+			if (i == 0)
+			{
+				SetColor(upF, upF);
+			}
+			else if (i == 19)
+			{
+				SetColor(rightF, rightF);
+			}
+			else if (j == 0)
+			{
+				SetColor(leftF, leftF);
+			}
+			else if (j == 19)
+			{
+				SetColor(downF, downF);
+			}
+			else
+			{
+				SetColor(Black, Black);
+			}
+			cout << "*";
+		}
+	}
+}
+int move(int x, int y, Color color)
+{
+	int key, count = 0;
+	do
+	{
+		frame();
+		square(x, y, color);
+		key = _getch();
+		square(x, y, Black);
+		switch (key)
+		{
+		case Up:
+			if (y > 0)
+				y--;
+			if (y == 1)
+			{
+				color = upF;
+				upF = (Color)(1 + rand() % 14);
+				count++;
+			}
+			break;
+		case Left:
+
+			if (x == 1)
+			{
+				color = leftF;
+				leftF = (Color)(1 + rand() % 14);
+				count++;
+			}
+			if (x > 1)
+				x--;
+			break;
+		case Right:
+			if (x < width)
+				x++;
+			if (x == width - squareW - 2)
+			{
+				color = rightF;
+				rightF = (Color)(1 + rand() % 14);
+				count++;
+			}
+			break;
+		case Down:
+			if (y < heigth)
+				y++;
+			if (y == heigth - squareH - 2)
+			{
+				color = downF;
+				downF = (Color)(1 + rand() % 14);
+				count++;
+			}
+			break;
+		case Enter:
+			color = (Color)(1 + rand() % 14);
+			break;
+
+		}
+	} while (key != esc);
+	return count;
+}
+template <typename MyTape>
+void ShowMas(MyTape* mas, int length)
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		cout << mas[i] << "\n";
+	}
+};
+template <typename MyTape>
+void Copy(MyTape* masFrom, MyTape* masCopy, int length, int Start, int StartCopy)
+{
+	for (size_t i = 0; i < (Start + length); i++)
+	{
+		masCopy[i + StartCopy] = masFrom[i + Start];
+	}
+};
+template <typename MyTape>
+void Generate(MyTape* mas, int length)
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		mas[i] = -15 + rand() % 30 + rand() % 9999 / 10000.0;
+	}
+}
+
+}
+
+void main()
+{
+	//setlocale(LC_ALL, "rus");
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
+
+	srand(time(NULL));
+	/*
+	
+
+	/*SetCursor(5, 7);
+	cout << "123654789654789";
+	SetCursor(5, 8);
+	cout << "mhdfjdhgfj";*/
+
+	/*int x = 5, y = 5;
+	for (size_t i = 0; i < 5; i++)
+	{
+		SetCursor(x, y+i);
+		for (size_t j = 0; j < 5; j++)
+		{
+			cout << "*";
+		}
+	}*/
+
+	//int key;
+	//cout << "на жмите Enter если Вы согласны: ";
+	//key = _getch();//возвращает код нажатия на клавишу
+	//if (key==Enter)
+	//{
+	//	cout << "спасибо!\n";
+	//}
+	//else
+	//{
+	//	cout << "до свидания!\n";
+	//}
+	int x = 7, y = 5;
+	int key;
+	Color color = Red;
+	cout << "gdsfsgmfjgjsfgdhg\n";
+	do
+	{
+		SetCursor(x, y);
+		SetColor(color, Black);
+		cout << "+";
+		key = _getch();
+		//закрашиваем символ чёрным цветом на ещё неизменившихся координатах
+		SetCursor(x, y);
+		SetColor(Black, Black);
+		cout << "+";
+		switch (key)
+		{
+		case Up:
+			if (y > 1)
+			{
+				y--;
+			}
+			break;
+		case Left:
+			if (x > 1)
+			{
+				x--;
+			}
+			break;
+		case Right:
+			if (x < 15)
+			{
+				x++;
+			}
+			break;
+		case Down:
+			if (y < 15)
+			{
+				y++;
+			}
+			break;
+		case Enter:
+			color = (Color)(1 + rand() % 14);
+			break;
+		}
+		//system("cls");//полная очистка экрана
+	} while (key != esc);
+	leftF = (Color)(1 + rand() % 14);
+	rightF = (Color)(1 + rand() % 14);
+	upF = (Color)(1 + rand() % 14);
+	downF = (Color)(1 + rand() % 14);
+
+	int kol = move(x, y, color);
+	cout << kol << "\n";
+
+
+
+	
+	
+
+}
